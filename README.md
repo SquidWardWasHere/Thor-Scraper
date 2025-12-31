@@ -47,7 +47,7 @@ go run main.go
 
 | Kütüphane | Görevi |
 | :--- | :--- |
-| **chromedp** | Tarayıcı kontrolü ve otomasyon. |
+| **chromedp** | Tarayıcı kontrolü ve otomasyonu. |
 | **pixelmatch** | Görüntü karşılaştırma ve fark bulma. |
 | **ledongthuc/pdf** | PDF okuma ve işleme desteği. |
 | **sysutil** | Sistem düzeyinde yardımcı fonksiyonlar. |
