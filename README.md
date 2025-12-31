@@ -45,9 +45,9 @@ go mod tidy
 Her şey hazır! Uygulamayı başlatmak için:
 go run main.go
 
-| Kütüphane | Görevi |
-| :--- | :--- |
-| **chromedp** | Tarayıcı kontrolü ve otomasyonu. |
-| **pixelmatch** | Görüntü karşılaştırma ve fark bulma. |
-| **ledongthuc/pdf** | PDF okuma ve işleme desteği. |
-| **sysutil** | Sistem düzeyinde yardımcı fonksiyonlar. |
+| Kütüphane          | Görevi                                 |
+| -                  | ------------------------               |
+| **chromedp**       | Tarayıcı kontrolü ve otomasyonu.       |
+| **pixelmatch**     | Görüntü karşılaştırma ve fark bulma.   |
+| **ledongthuc/pdf** | PDF okuma ve işleme desteği.           |
+| **sysutil**        | Sistem düzeyinde yardımcı fonksiyonlar.|
