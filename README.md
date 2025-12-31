@@ -1,5 +1,6 @@
 # 🚀 Thor-Scraper 
 Bu proje, **Go** dili ve **Chromedp** altyapısını kullanarak web sayfalarını otomatik tarayan ve ekran görüntüsü alan bir tooldur.
+En önemli özelliği Tor ağını kullanarak hızlı ve güvenilir bir şekilde veri çekebilmektedir.
 
 * 🌐 **Headless Browser:** Chrome altyapısıyla görünmez ve hızlı tarayıcı yönetimi.
 * 📸 **Smart Screenshot:** Sayfanın tamamını otomatik yakalama.
@@ -17,17 +18,17 @@ Bu projede tor ağı kullanılacağı için;
 ```bash
 A) Linux (Kali / Ubuntu / Debian) Kurulumu
 # Tor servisini yükle
-sudo apt update && sudo apt install tor -y
+   sudo apt update && sudo apt install tor -y
 # Servisi başlat
-sudo service tor start
+   sudo service tor start
 # Çalışıp çalışmadığını kontrol et (Active: active (running) görmelisin)
-sudo service tor status
+   sudo service tor status
 
 B) macOS (Homebrew ile) Kurulumu
 # Tor servisini yükle
-brew install tor
+   brew install tor
 # Servisi başlat
-brew services start tor
+   brew services start tor
 
 2️⃣ **Depoyu bilgisayarınıza indirin:**
    ```bash
@@ -35,15 +36,15 @@ brew services start tor
    cd Thor-Scraper
 
 Kullanım için;
-cd Thor-Scraper
+   cd Thor-Scraper
 
 3️⃣ Bağımlılıkları Çekin
 Gerekli tüm kütüphaneleri (chromedp, sysutil, pdf vb.) yüklemek için:
-go mod tidy
+   go mod tidy
 
 4️⃣ Çalıştırın
 Her şey hazır! Uygulamayı başlatmak için:
-go run main.go
+   go run main.go
 
 | Kütüphane          | Görevi                                 |
 | -                  | ------------------------               |
