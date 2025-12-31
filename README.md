@@ -31,7 +31,6 @@ B) macOS (Homebrew ile) Kurulumu
    brew services start tor
 
 2️⃣ **Depoyu bilgisayarınıza indirin:**
-   ```bash
    git clone https://github.com/SquidWardWasHere/Thor-Scraper.git
    cd Thor-Scraper
 
