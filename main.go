@@ -2,117 +2,180 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/chromedp/chromedp"
 	"golang.org/x/net/proxy"
 )
 
 const (
-	TorProxyAddr = "127.0.0.1:9050"
-	TargetFile   = "targets.yaml"
-	OutputDir    = "target_data"
-	ReportFile   = "tarama_raporu.log"
+	TorProxyAddr  = "127.0.0.1:9050"
+	TargetFile    = "targets.yaml"
+	ScreenshotDir = "screenshots"
+	ReportFile    = "scan_report.log"
 )
 
+type Site struct {
+	URL  string
+	Name string
+}
+
 func main() {
-	fmt.Println("=== Thor'un Scraperi Başlatılıyor ===")
 
-	os.MkdirAll(OutputDir, 0755)
+	os.MkdirAll(ScreenshotDir, 0755)
 
-	client, err := torBaglantisiKur()
-	if err != nil {
-		log.Fatal("Tor bağlantı hatası:", err)
-	}
-	fmt.Println("Bağlantı başarılı")
-	fmt.Println("[BİLGİ] Tor ağına bağlanıldı")
+	logFile, _ := os.Create(ReportFile)
+	defer logFile.Close()
 
-	ipAdresiniGoster(client)
+	printInfo("Tor bağlantısı kontrol ediliyor (Port: 9050)...")
 
-	urls, err := dosyaOku(TargetFile)
-	if err != nil {
-		log.Fatal("targets.yaml dosyası bulunamadı:", err)
-	}
-	fmt.Printf("[BİLGİ] %d adet hedef yüklendi.\n", len(urls))
-
-	logDosyasi, _ := os.OpenFile(ReportFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	defer logDosyasi.Close()
-
-	for _, url := range urls {
-		fmt.Printf("Taranıyor: %s ... ", url)
-
-		resp, err := client.Get(url)
-		if err != nil {
-			msg := fmt.Sprintf("[HATA] %v\n", err)
-			fmt.Print(msg)
-			logDosyasi.WriteString(url + " -> " + msg)
-			continue
-		}
-
-		if resp.StatusCode == 200 {
-			dosyaAdi := fmt.Sprintf("%s/veri_%d.html", OutputDir, time.Now().Unix())
-			dosyaKaydet(dosyaAdi, resp.Body)
-
-			msg := fmt.Sprintf("[BAŞARILI] Kaydedildi: %s\n", dosyaAdi)
-			fmt.Print(msg)
-			logDosyasi.WriteString(url + " -> " + msg)
-		} else {
-			msg := fmt.Sprintf("[UYARI] Kod: %d\n", resp.StatusCode)
-			fmt.Print(msg)
-			logDosyasi.WriteString(url + " -> " + msg)
-		}
-		resp.Body.Close()
-	}
-	fmt.Println("\n=== İşlem Tamamlandı ===")
-}
-
-func torBaglantisiKur() (*http.Client, error) {
-	dialer, err := proxy.SOCKS5("tcp", TorProxyAddr, nil, proxy.Direct)
-	if err != nil {
-		return nil, err
-	}
-	return &http.Client{
-		Transport: &http.Transport{Dial: dialer.Dial},
-		Timeout:   45 * time.Second,
-	}, nil
-}
-
-func ipAdresiniGoster(client *http.Client) {
-	fmt.Print("IP Adresi Doğrulanıyor... ")
-	resp, err := client.Get("http://check.torproject.org/api/ip")
-	if err != nil {
-		fmt.Println("[HATA] IP kontrolü başarısız!")
+	if checkAndPrintIP() {
+		printSuccess("Tor bağlantısı başarılı!")
+	} else {
+		printErr("Tor bağlantısı başarısız! Servis açık mı?")
 		return
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Printf("Tor IP Adresiniz: %s\n", string(body))
+
+	sites, err := readTargets(TargetFile)
+	if err != nil {
+		printErr(fmt.Sprintf("Dosya okunamadı: %v", err))
+		return
+	}
+	printInfo(fmt.Sprintf("targets.yaml okundu - %d site yüklendi", len(sites)))
+
+	for {
+		fmt.Println()
+		fmt.Println("=== Thor Scraper Menu ===")
+		for i, s := range sites {
+			fmt.Printf("%d. %s\n", i+1, s.Name)
+		}
+		fmt.Printf("%d. Hepsini Tara\n", len(sites)+1)
+		fmt.Println("0. Çıkış")
+		fmt.Print("Seçiminiz: ")
+
+		var choice int
+		fmt.Scan(&choice)
+
+		if choice == 0 {
+			break
+		} else if choice == len(sites)+1 {
+
+			for _, s := range sites {
+				takeScreenshot(s, logFile)
+			}
+		} else if choice > 0 && choice <= len(sites) {
+
+			takeScreenshot(sites[choice-1], logFile)
+		} else {
+			printErr("Geçersiz seçenek.")
+		}
+	}
 }
 
-func dosyaOku(yol string) ([]string, error) {
-	file, err := os.Open(yol)
+func takeScreenshot(site Site, logFile *os.File) {
+	printInfo(fmt.Sprintf("Taranıyor: %s (%s)", site.Name, site.URL))
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ProxyServer("socks5://"+TorProxyAddr),
+		chromedp.Flag("headless", true),
+		chromedp.WindowSize(1280, 800),
+	)
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	var buf []byte
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(site.URL),
+		chromedp.Sleep(5*time.Second),
+		chromedp.FullScreenshot(&buf, 90),
+	)
+
+	if err != nil {
+		printErr(fmt.Sprintf("%s -> UYARI: %v", site.Name, err))
+		logFile.WriteString(fmt.Sprintf("[UYARI] %s (%s) -> %v\n", site.Name, site.URL, err))
+		return
+	}
+
+	filename := fmt.Sprintf("%s/%s_%d.png", ScreenshotDir, site.Name, time.Now().Unix())
+	if err := os.WriteFile(filename, buf, 0644); err != nil {
+		printErr("Dosya kaydedilemedi")
+		return
+	}
+
+	fileInfo, _ := os.Stat(filename)
+	size := fileInfo.Size()
+	printSuccess(fmt.Sprintf("Screenshot yakalandı %s (%d bytes)", site.Name, size))
+	printSuccess(fmt.Sprintf("Screenshot kaydedildi: %s", filename))
+
+	logFile.WriteString(fmt.Sprintf("[BAŞARILI] %s -> %s\n", site.Name, filename))
+}
+
+func checkAndPrintIP() bool {
+	dialer, err := proxy.SOCKS5("tcp", TorProxyAddr, nil, proxy.Direct)
+	if err != nil {
+		printErr(fmt.Sprintf("Proxy hatası: %v", err))
+		return false
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{Dial: dialer.Dial},
+		Timeout:   20 * time.Second,
+	}
+
+	resp, err := client.Get("http://check.torproject.org/api/ip")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false
+	}
+
+	fmt.Printf("IP Adresi Doğrulanıyor... Tor IP Adresiniz: %s\n", strings.TrimSpace(string(body)))
+	return true
+}
+
+func readTargets(path string) ([]Site, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	var urls []string
+
+	var sites []Site
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line != "" {
-			urls = append(urls, line)
+		if line != "" && strings.Contains(line, "|") {
+			parts := strings.Split(line, "|")
+			sites = append(sites, Site{URL: parts[0], Name: parts[1]})
 		}
 	}
-	return urls, scanner.Err()
+	return sites, scanner.Err()
 }
 
-func dosyaKaydet(isim string, veri io.ReadCloser) {
-	out, _ := os.Create(isim)
-	defer out.Close()
-	io.Copy(out, veri)
+func printInfo(msg string) {
+	fmt.Printf("[BİLGİ] %s\n", msg)
+}
+func printSuccess(msg string) {
+	fmt.Printf("[BAŞARILI] %s\n", msg)
+}
+func printErr(msg string) {
+	fmt.Printf("[HATA] %s\n", msg)
 }
