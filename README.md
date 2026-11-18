@@ -1,4 +1,4 @@
-# 🚀 Tor-Scraper 
+# 🚀 Thor-Scraper 
 Bu proje, **Go** dili ve **Chromedp** altyapısını kullanarak web sayfalarını otomatik tarayan ve ekran görüntüsü alan bir tooldur.
 En önemli özelliği Tor ağını kullanarak hızlı ve güvenilir bir şekilde veri çekebilmektedir.
 
